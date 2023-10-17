@@ -226,8 +226,9 @@ public class CommonMethods {
      * @return
      */
     public static WebDriverWait getWaitObject() {
-        WebDriverWait wait = new WebDriverWait(Driver.getDriver(), Duration.ofSeconds(10));
+       // WebDriverWait wait = new WebDriverWait(Driver.getDriver(), 30);
         // WebDriverWait wait = new WebDriverWait(Driver.getDriver(), 15);
+        WebDriverWait wait = new WebDriverWait(Driver.getDriver(), Duration.ofSeconds(10));
 
         return wait;
     }

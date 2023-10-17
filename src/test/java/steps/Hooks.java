@@ -5,6 +5,7 @@ import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
 import utils.CommonMethods;
+import utils.ConfigurationReader;
 import utils.Driver;
 
 import java.util.concurrent.TimeUnit;
@@ -15,7 +16,7 @@ public class Hooks {
     public void start() {
         Driver.getDriver().manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
         Driver.getDriver().manage().window().maximize();
-        //Driver.getDriver().get(ConfigurationReader.getProperty("url"));
+        Driver.getDriver().get(ConfigurationReader.getProperty("url"));
     }
 
     @After
