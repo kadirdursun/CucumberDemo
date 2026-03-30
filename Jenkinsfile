@@ -12,6 +12,8 @@ pipeline {
                   - name: runner
                     image: 356835234430.dkr.ecr.us-east-1.amazonaws.com/jdk-selenium:latest
                     command: ["tail", "-f", "/dev/null"]
+                    securityContext:
+                      runAsUser: 0
             """
         }
     }
