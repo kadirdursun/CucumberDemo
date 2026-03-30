@@ -1,59 +1,40 @@
 package utils;
 
-
+import com.microsoft.playwright.Locator;
+import com.microsoft.playwright.Page;
+import org.apache.commons.io.FileUtils;
+import org.junit.Assert;
 
 import java.io.File;
 import java.io.IOException;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAdjusters;
 import java.util.*;
-import java.util.NoSuchElementException;
-
-import com.google.common.base.Function;
-import org.apache.commons.io.FileUtils;
-import org.junit.Assert;
-import org.openqa.selenium.*;
-import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.support.ui.*;
 
 import static org.junit.Assert.assertTrue;
 
 public class CommonMethods {
 
-    public static Boolean waitForInvisibility(WebElement element) {
-        return getWaitObject().until(ExpectedConditions.invisibilityOf(element));
+    /**
+     * Clears the input field and types new text
+     */
+    public static void sendText(Locator locator, String text) {
+        locator.clear();
+        locator.fill(text);
     }
 
     /**
-     * This method clears the textbox and sends another text
-     *
-     * @param element
-     * @param text
+     * Clicks on a radio or checkbox from a list that matches the given value
      */
-    public static void sendText(WebElement element, String text) {
-        waitForVisibility(element);
-        element.clear();
-        element.sendKeys(text);
-    }
-
-    /**
-     * This method checks if radio/checkbox is enabled and then clicks on the
-     * element that has the value we want
-     *
-     * @param listElement
-     * @param value
-     */
-    public static void clickRadioOrCheckbox(List<WebElement> listElement, String value) {
-        String actualValue;
-
-        for (WebElement el : listElement) {
-            actualValue = el.getAttribute("value").trim();
-            if (el.isEnabled() && actualValue.equals(value)) {
+    public static void clickRadioOrCheckbox(Locator listLocator, String value) {
+        int count = listLocator.count();
+        for (int i = 0; i < count; i++) {
+            Locator el = listLocator.nth(i);
+            String actualValue = el.getAttribute("value");
+            if (actualValue != null && actualValue.trim().equals(value) && el.isEnabled()) {
                 el.click();
                 break;
             }
@@ -61,321 +42,166 @@ public class CommonMethods {
     }
 
     /**
-     * This method checks if the text is found in the dropdown element and only then
-     * it selects it
-     *
-     * @param element
-     * @param textToSelect
+     * Selects a dropdown option by visible text using the native <select> element
      */
-    public static void selectDropdownOption(WebElement element, String textToSelect) {
-        try {
-            Select select = new Select(element);
-
-            List<WebElement> options = select.getOptions();
-
-            for (WebElement el : options) {
-                if (el.getText().equals(textToSelect)) {
-                    select.selectByVisibleText(textToSelect);
-                    break;
-                }
-            }
-        } catch (UnexpectedTagNameException e) {
-            e.printStackTrace();
-        }
-
+    public static void selectDropdownOption(Locator locator, String textToSelect) {
+        locator.selectOption(new com.microsoft.playwright.options.SelectOption().setLabel(textToSelect));
     }
 
     /**
-     * This method checks if the index is valid and only then selects it
-     *
-     * @param element
-     * @param index
+     * Selects a dropdown option by index using the native <select> element
      */
-    public static void selectDropdownOption(WebElement element, int index) {
-
-        try {
-            Select select = new Select(element);
-
-            int size = select.getOptions().size();
-
-            if (size > index) {
-                select.selectByIndex(index);
-            }
-        } catch (UnexpectedTagNameException e) {
-            e.printStackTrace();
-        }
-
+    public static void selectDropdownOption(Locator locator, int index) {
+        locator.selectOption(new com.microsoft.playwright.options.SelectOption().setIndex(index));
     }
 
     /**
-     * This method accepts alerts and catches exception if alert in not present
+     * Accepts the currently open browser dialog
      */
     public static void acceptAlert() {
-        try {
-            Alert alert = Driver.getDriver().switchTo().alert();
-            alert.accept();
-        } catch (NoAlertPresentException e) {
-            e.printStackTrace();
-        }
-
+        Driver.getPage().onDialog(dialog -> dialog.accept());
     }
 
     /**
-     * This method will dismiss the alert after checking if alert is present
+     * Dismisses the currently open browser dialog
      */
     public static void dismissAlert() {
-        try {
-            Alert alert = Driver.getDriver().switchTo().alert();
-            alert.dismiss();
-        } catch (NoAlertPresentException e) {
-            e.printStackTrace();
-        }
+        Driver.getPage().onDialog(dialog -> dialog.dismiss());
     }
 
     /**
-     * This method returns the alert text. If no alert is present exception is
-     * caught and null is returned.
-     *
-     * @return
+     * Returns the text of the currently open browser dialog
      */
     public static String getAlertText() {
-        String alertText = null;
-
-        try {
-            Alert alert = Driver.getDriver().switchTo().alert();
-            alertText = alert.getText();
-        } catch (NoAlertPresentException e) {
-            e.printStackTrace();
-        }
-
-        return alertText;
+        final String[] text = {null};
+        Driver.getPage().onDialog(dialog -> text[0] = dialog.message());
+        return text[0];
     }
 
     /**
-     * This method send text to the alert. NoAlertPresentException is handled.
-     *
-     * @param text
+     * Sends text to the currently open browser dialog
      */
-    public static void sendAlertText(String text) {
-        try {
-            Alert alert = Driver.getDriver().switchTo().alert();
-            alert.sendKeys(text);
-        } catch (NoAlertPresentException e) {
-            e.printStackTrace();
-        }
+    public static void sendAlertText(String textToSend) {
+        Driver.getPage().onDialog(dialog -> dialog.accept(textToSend));
     }
 
     /**
-     * This method switches to a frame by using name or id
-     *
-     * @param nameOrId
+     * Switches focus into a frame by name or URL
      */
-    public static void switchToFrame(String nameOrId) {
-        try {
-            Driver.getDriver().switchTo().frame(nameOrId);
-        } catch (NoSuchFrameException e) {
-            e.printStackTrace();
-        }
+    public static void switchToFrame(String nameOrUrl) {
+        Driver.getPage().frame(nameOrUrl);
     }
 
     /**
-     * This method switches to a frame by using an index
-     *
-     * @param index
+     * Switches focus into a frame by index
      */
     public static void switchToFrame(int index) {
-        try {
-            Driver.getDriver().switchTo().frame(index);
-        } catch (NoSuchFrameException e) {
-            e.printStackTrace();
-        }
+        Driver.getPage().frames().get(index);
     }
 
     /**
-     * This method switches to a frame by using a WebElement
-     *
-     * @param element
-     */
-    public static void switchToFrame(WebElement element) {
-        try {
-            Driver.getDriver().switchTo().frame(element);
-        } catch (NoSuchFrameException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    /**
-     * This method switches focus to a child window
+     * Switches to the most recently opened page (child window/tab)
      */
     public static void switchToChildWindow() {
-        String mainWindow = Driver.getDriver().getWindowHandle();
-        Set<String> windows = Driver.getDriver().getWindowHandles();
-
-        for (String window : windows) {
-            if (!window.equals(mainWindow)) {
-                Driver.getDriver().switchTo().window(window);
-            }
-        }
-
+        Page page = Driver.getPage().context().pages().stream()
+                .reduce((first, second) -> second)
+                .orElseThrow(() -> new RuntimeException("No child page found"));
+        page.bringToFront();
     }
 
     /**
-     * This method creates a WebDriverWait object and returns it
-     *
-     * @return
+     * Waits for a locator to be visible
      */
-    public static WebDriverWait getWaitObject() {
-       // WebDriverWait wait = new WebDriverWait(Driver.getDriver(), 30);
-        // WebDriverWait wait = new WebDriverWait(Driver.getDriver(), 15);
-        WebDriverWait wait = new WebDriverWait(Driver.getDriver(), Duration.ofSeconds(10));
-
-        return wait;
+    public static void waitForVisibility(Locator locator) {
+        locator.waitFor(new Locator.WaitForOptions()
+                .setState(com.microsoft.playwright.options.WaitForSelectorState.VISIBLE));
     }
 
     /**
-     * This method waits for an item to be clickable
-     *
-     * @param element
-     * @return
+     * Waits for a locator to be hidden
      */
-    public static WebElement waitForClickability(WebElement element) {
-        return getWaitObject().until(ExpectedConditions.elementToBeClickable(element));
+    public static void waitForInvisibility(Locator locator) {
+        locator.waitFor(new Locator.WaitForOptions()
+                .setState(com.microsoft.playwright.options.WaitForSelectorState.HIDDEN));
     }
 
     /**
-     * This method waits for an element to be visible
-     *
-     * @param element
-     * @return
+     * Clicks on a locator after waiting for it to be enabled
      */
-    public static WebElement waitForVisibility(WebElement element) {
-        return getWaitObject().until(ExpectedConditions.visibilityOf(element));
-    }
-
-    /**
-     * This method click in an element and has wait implemented on it
-     *
-     * @param element
-     */
-    public static void smartClick(WebElement element) {
-        waitForClickability(element);
-        element.click();
+    public static void smartClick(Locator locator) {
+        locator.click();
     }
 
     public static void waitthread(int seconds) {
         try {
-            Thread.sleep(seconds * 1000);
+            Thread.sleep(seconds * 1000L);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
     }
 
     /**
-     * This methods casts the driver to a JavascriptExecutor and returns it
-     *
-     * @return
+     * Clicks element using JavaScript evaluation
      */
-    public static JavascriptExecutor getJSObject() {
-        JavascriptExecutor js = (JavascriptExecutor) Driver.getDriver();
-
-        return js;
+    public static void jsClick(Locator locator) {
+        locator.evaluate("el => el.click()");
     }
 
     /**
-     * This method will click in the element passed to it using JavascriptExecutor
-     *
-     * @param element
+     * Scrolls the page until the element is visible
      */
-    public static void jsClick(WebElement element) {
-        getJSObject().executeScript("arguments[0].click()", element);
+    public static void scrollToElement(Locator locator) {
+        locator.scrollIntoViewIfNeeded();
     }
 
     /**
-     * This method will scroll the page until the element passed to it becomes
-     * visible
-     *
-     * @param element
-     */
-    public static void scrollToElement(WebElement element) {
-        getJSObject().executeScript("arguments[0].scrollIntoView(true)", element);
-    }
-
-    /**
-     * This method will scroll the page down based on the passed pixel parameter
-     *
-     * @param pixel
+     * Scrolls down by the given number of pixels
      */
     public static void scrollDown(int pixel) {
-        getJSObject().executeScript("window.scrollBy(0," + pixel + ")");
+        Driver.getPage().evaluate("window.scrollBy(0," + pixel + ")");
     }
 
     /**
-     * This method will scroll the page up based on the passed pixel parameter
-     *
-     * @param pixel
+     * Scrolls up by the given number of pixels
      */
     public static void scrollUp(int pixel) {
-        getJSObject().executeScript("window.scrollBy(0,-" + pixel + ")");
+        Driver.getPage().evaluate("window.scrollBy(0,-" + pixel + ")");
     }
 
     /**
-     * This method will select a date from the calendar
-     *
-     * @param elements
-     * @param text
+     * Selects a date from a calendar by matching text in a list of day locators
      */
-    public static void selectCalendarDate(List<WebElement> elements, String text) {
-        for (WebElement day : elements) {
-            if (day.isEnabled()) {
-                if (day.getText().equals(text)) {
-                    day.click();
-                    break;
-                }
+    public static void selectCalendarDate(Locator daysLocator, String text) {
+        int count = daysLocator.count();
+        for (int i = 0; i < count; i++) {
+            Locator day = daysLocator.nth(i);
+            if (day.isEnabled() && day.textContent().equals(text)) {
+                day.click();
+                break;
             }
         }
     }
 
+    /**
+     * Takes a screenshot, saves to disk, and returns the bytes
+     */
     public static byte[] takeScreenshot(String filename) {
-        TakesScreenshot ts = (TakesScreenshot) Driver.getDriver();
-
-        byte[] picBytes = ts.getScreenshotAs(OutputType.BYTES);
-
-        File file = ts.getScreenshotAs(OutputType.FILE);
-        // create destination as : filepath + filename + timestamp + .png
-        String destination = "screenshot/" + filename + getDateAndTimeStamp() + ".png";
-
-        try {
-            FileUtils.copyFile(file, new File(destination));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return picBytes;
+        String destination = "screenshot/" + filename + getDateAndTimeStamp().replace("/", "-").replace(":", "-") + ".png";
+        new File(destination).getParentFile().mkdirs();
+        return Driver.getPage().screenshot(new Page.ScreenshotOptions()
+                .setPath(java.nio.file.Paths.get(destination)));
     }
 
-    /**
-     * Method to return the current time stamp in a String
-     *
-     * @return
-     */
     public static String getDateAndTimeStamp() {
-
         Date date = new Date();
         SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
-
         return sdf.format(date.getTime());
-
     }
 
     public static String getDateStamp() {
-
         Date date = new Date();
         SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy");
-
         return sdf.format(date.getTime());
-
     }
 
     public static boolean isLegalDate(String s) {
@@ -384,153 +210,83 @@ public class CommonMethods {
         return sdf.parse(s, new ParsePosition(0)) != null;
     }
 
-    public void waitUntilClick(WebElement element) {
-        WebDriverWait wait = new WebDriverWait(Driver.getDriver(), Duration.ofSeconds(10));
-        //WebDriverWait wait = new WebDriverWait(Driver.getDriver(), 15);
-        wait.until(ExpectedConditions.elementToBeClickable(element));
-    }
-
+    /**
+     * Waits for the page to reach document.readyState == "complete"
+     */
     public static void waitForPageToLoad() {
-        ExpectedCondition<Boolean> expectation = new ExpectedCondition<Boolean>() {
-            public Boolean apply(WebDriver driver) {
-                return ((JavascriptExecutor) driver).executeScript("return document.readyState").equals("complete");
-            }
-        };
+        System.out.println("Waiting for page to load...");
+        Driver.getPage().waitForLoadState(com.microsoft.playwright.options.LoadState.DOMCONTENTLOADED);
+    }
+
+    /**
+     * Verifies that an element found by the given selector is visible
+     */
+    public static void verifyElementDisplayed(String selector) {
+        Locator locator = Driver.getPage().locator(selector);
         try {
-            System.out.println("Waiting for page to load...");
-            WebDriverWait wait = new WebDriverWait(Driver.getDriver(), Duration.ofSeconds(10));
-            //WebDriverWait wait = new WebDriverWait(Driver.getDriver(), 15);
-            wait.until(expectation);
-        } catch (Throwable error) {
-            System.out.println(
-                    "Timeout waiting for Page Load Request to complete after " + 15 + " seconds");
+            assertTrue("Element not visible: " + selector, locator.isVisible());
+        } catch (Exception e) {
+            Assert.fail("Element not found: " + selector);
         }
     }
 
-    public static void waitForPageToLoading(WebElement iconLoading) {
-        ExpectedCondition<Boolean> expectation = new ExpectedCondition<Boolean>() {
-            public Boolean apply(WebDriver driver) {
-                return ((JavascriptExecutor) driver).executeScript("return document.readyState").equals("complete");
-            }
-        };
+    /**
+     * Verifies that a locator is visible
+     */
+    public static void verifyElementDisplayed(Locator locator) {
         try {
-            System.out.println("Waiting for page to load...");
-            WebDriverWait wait = new WebDriverWait(Driver.getDriver(), Duration.ofSeconds(10));
-            //WebDriverWait wait = new WebDriverWait(Driver.getDriver(), 15);
-            wait.until(expectation);
-        } catch (Throwable error) {
-            System.out.println(
-                    "Timeout waiting for Page Load Request to complete after " + 15 + " seconds");
+            assertTrue("Element not visible: " + locator, locator.isVisible());
+        } catch (Exception e) {
+            Assert.fail("Element not found: " + locator);
         }
     }
 
-    public static WebElement fluentWait(final WebElement webElement, int timeinsec) {
-        FluentWait<WebDriver> wait = new FluentWait<WebDriver>(Driver.getDriver())
-                .withTimeout(Duration.ofSeconds(timeinsec))
-                .pollingEvery(Duration.ofMillis(500))
-                .ignoring(NoSuchElementException.class);
-        WebElement element = wait.until(new Function<WebDriver, WebElement>() {
-            public WebElement apply(WebDriver driver) {
-                return webElement;
-            }
-        });
-        return element;
+    /**
+     * Double-clicks on a locator
+     */
+    public static void doubleClick(Locator locator) {
+        locator.dblclick();
     }
 
-    public static void verifyElementDisplayed(By by) {
-        try {
-            assertTrue("Element not visible: " + by, Driver.getDriver().findElement(by).isDisplayed());
-        } catch (NoSuchElementException e) {
-            Assert.fail("Element not found: " + by);
-
-        }
-    }
-
-    public static void verifyElementDisplayed(WebElement element) {
-        try {
-            assertTrue("Element not visible: " + element, element.isDisplayed());
-        } catch (NoSuchElementException e) {
-            Assert.fail("Element not found: " + element);
-
-        }
-    }
-
-    public static void waitForStaleElement(WebElement element) {
-        int y = 0;
-        while (y <= 15) {
-            if (y == 1)
-                try {
-                    element.isDisplayed();
-                    break;
-                } catch (StaleElementReferenceException st) {
-                    y++;
-                    try {
-                        Thread.sleep(300);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                } catch (WebDriverException we) {
-                    y++;
-                    try {
-                        Thread.sleep(300);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-        }
-    }
-
-    public WebElement selectRandomTextFromDropdown(Select select) {
-        Random random = new Random();
-        List<WebElement> weblist = select.getOptions();
-        int optionIndex = 1 + random.nextInt(weblist.size() - 1);
-        select.selectByIndex(optionIndex);
-        return select.getFirstSelectedOption();
-    }
-
-    public void doubleClick(WebElement element) {
-        new Actions(Driver.getDriver()).doubleClick(element).build().perform();
-    }
-
-    public static String getDropdownListOptionsText(WebElement element, String textToSelect) {
-        Select select = new Select(element);
-        List<WebElement> options = select.getOptions();
-        for (WebElement el : options) {
-            if (el.getText().equals(textToSelect)) {
-                select.selectByVisibleText(textToSelect);
-                break;
+    /**
+     * Clicks the item in the list locator whose text matches the given item string
+     */
+    public static void clickItemFromList(Locator listLocator, String item) {
+        int count = listLocator.count();
+        for (int i = 0; i < count; i++) {
+            Locator el = listLocator.nth(i);
+            if (el.textContent().toLowerCase().contains(item.toLowerCase())) {
+                el.click();
+                return;
             }
         }
-        return select.getFirstSelectedOption().getText();
-    }
-
-    public static void clickItemFromList(List<WebElement> listElement, String item) {
-        listElement.stream()
-                .filter(ele -> ele.getText().toLowerCase().contains(item.toLowerCase()))
-                .findFirst()
-                .orElseThrow(() -> new NoSuchElementException("item not found: " + item))
-                .click();
+        throw new NoSuchElementException("item not found: " + item);
     }
 
     public static String getRandomString() {
         String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         StringBuilder generator = new StringBuilder();
         Random rnd = new Random();
-        while (generator.length() < 10) { // length of the random string.
+        while (generator.length() < 10) {
             int index = (int) (rnd.nextFloat() * letters.length());
             generator.append(letters.charAt(index));
         }
-        String newString = generator.toString();
-        return newString;
+        return generator.toString();
     }
 
-    public static String getItemFromList(List<WebElement> listElement, String item) {
-        return listElement.stream()
-                .filter(ele -> ele.getText().toLowerCase().contains(item.toLowerCase()))
-                .findFirst()
-                .orElseThrow(() -> new NoSuchElementException("item not found: " + item))
-                .getText();
-
+    /**
+     * Returns the text of the first item in the list locator that contains the given string
+     */
+    public static String getItemFromList(Locator listLocator, String item) {
+        int count = listLocator.count();
+        for (int i = 0; i < count; i++) {
+            Locator el = listLocator.nth(i);
+            String text = el.textContent();
+            if (text.toLowerCase().contains(item.toLowerCase())) {
+                return text;
+            }
+        }
+        throw new NoSuchElementException("item not found: " + item);
     }
 
     public static String getRandomBirthday() {
@@ -538,25 +294,19 @@ public class CommonMethods {
         return newDate.format(DateTimeFormatter.ofPattern("MM/dd/yyy"));
     }
 
-//    public static String getFirstDateOfCurrentMonth() {
-//        var dateTimeFormatter = DateTimeFormatter.ofPattern("MM/dd/YYYY");
-//        return dateTimeFormatter.format(LocalDate.now().with(TemporalAdjusters.firstDayOfMonth()));
-//    }
-
-    public static void clickRandomItemFromList(List<WebElement> elements) {
-        int maxProducts = elements.size();
-        // get random number
-        Random random = new Random();
-        int randomProduct = random.nextInt(maxProducts);
-        // Select the list item
-        elements.get(randomProduct).click();
+    /**
+     * Clicks a random element from the list locator
+     */
+    public static void clickRandomItemFromList(Locator listLocator) {
+        int count = listLocator.count();
+        int randomIndex = new Random().nextInt(count);
+        listLocator.nth(randomIndex).click();
     }
 
-    public static List<String> getAllItemsString(List<WebElement> elements){
-        ArrayList<String> items=new ArrayList<String>();
-        for (int i=0; i< elements.size(); i++){
-            items.add(elements.get(i).getText());
-        }
-        return items;
+    /**
+     * Returns all text contents from a list locator as a List of Strings
+     */
+    public static List<String> getAllItemsString(Locator listLocator) {
+        return listLocator.allTextContents();
     }
 }

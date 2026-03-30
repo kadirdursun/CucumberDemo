@@ -1,11 +1,13 @@
 package pages;
 
+import com.microsoft.playwright.Page;
 import utils.Driver;
-import org.openqa.selenium.support.PageFactory;
 
 public class MainPage {
 
+    protected Page page;
+
     public MainPage() {
-        PageFactory.initElements(Driver.getDriver(), this);
+        this.page = Driver.getPage();
     }
 }

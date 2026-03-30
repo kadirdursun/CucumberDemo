@@ -1,94 +1,74 @@
 package utils;
-import io.github.bonigarcia.wdm.WebDriverManager;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.firefox.FirefoxDriver;
-import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.ie.InternetExplorerDriver;
-import org.openqa.selenium.remote.DesiredCapabilities;
-import org.openqa.selenium.remote.RemoteWebDriver;
-import org.openqa.selenium.safari.SafariDriver;
-import java.net.URL;
+
+import com.microsoft.playwright.*;
 
 public class Driver {
 
-    private static final ThreadLocal<WebDriver> driverPool = new ThreadLocal<>();
-    private Driver(){ }
-    public static WebDriver getDriver(){
+    private static final ThreadLocal<Playwright> playwrightPool = new ThreadLocal<>();
+    private static final ThreadLocal<Browser> browserPool = new ThreadLocal<>();
+    private static final ThreadLocal<Page> pagePool = new ThreadLocal<>();
 
-        if(driverPool.get() == null) {
+    private Driver() {}
+
+    public static Page getPage() {
+        if (pagePool.get() == null) {
             synchronized (Driver.class) {
                 String browser = ConfigurationReader.getProperty("browser");
                 if (System.getProperty("browser") != null) {
                     System.out.println("Browser type was changed to: " + System.getProperty("browser"));
                     browser = System.getProperty("browser");
                 }
+
+                Playwright playwright = Playwright.create();
+                playwrightPool.set(playwright);
+
+                BrowserType.LaunchOptions headfulOptions = new BrowserType.LaunchOptions().setHeadless(false);
+                BrowserType.LaunchOptions headlessOptions = new BrowserType.LaunchOptions().setHeadless(true);
+
+                Browser browserInstance;
                 switch (browser) {
                     case "chrome":
-                        ChromeOptions chromeOptions = new ChromeOptions();
-                        chromeOptions.addArguments("--remote-allow-origins=*");
-                        WebDriverManager.chromedriver().setup();
-                        driverPool.set(new ChromeDriver(chromeOptions));
+                    case "chromium":
+                        browserInstance = playwright.chromium().launch(headfulOptions);
                         break;
                     case "firefox":
-                        WebDriverManager.firefoxdriver().setup();
-                        driverPool.set(new FirefoxDriver());
+                        browserInstance = playwright.firefox().launch(headfulOptions);
                         break;
-                    case "ie":
-                        WebDriverManager.iedriver().setup();
-                        driverPool.set(new InternetExplorerDriver());
-                        break;
+                    case "webkit":
                     case "safari":
-                        WebDriverManager.getInstance(SafariDriver.class).setup();
-                        driverPool.set(new  SafariDriver());
+                        browserInstance = playwright.webkit().launch(headfulOptions);
                         break;
                     case "headless-chrome":
-                        WebDriverManager.chromedriver().setup();
-                        driverPool.set(new ChromeDriver(new ChromeOptions().setHeadless(true)));
-                        break;
-                    case "remote-chrome":
-                        try {
-                            DesiredCapabilities desiredCapabilities = new DesiredCapabilities();
-                            desiredCapabilities.setBrowserName("chrome");
-                            String ip = System.getProperty("webdriverIP") != null
-                                    ? System.getProperty("webdriverIP")
-                                    : "localhost";
-                            URL gridUrl = new URL("http", ip, 4444, "/wd/hub");
-                            ChromeOptions chromeOptions2 = new ChromeOptions();
-                            chromeOptions2.addArguments("--disable-dev-shm-usage");
-                            desiredCapabilities.setCapability(ChromeOptions.CAPABILITY,chromeOptions2);
-                            driverPool.set(new RemoteWebDriver(gridUrl, desiredCapabilities));
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                        break;
-                    case "remote-firefox":
-                        try {
-                            DesiredCapabilities desiredCapabilities = new DesiredCapabilities();
-                            desiredCapabilities.setBrowserName("firefox");
-                            URL gridUrl = new URL("http://www.ec2machine:4444/wd/hub");
-                            driverPool.set(new RemoteWebDriver(gridUrl, desiredCapabilities));
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+                    case "headless-chromium":
+                        browserInstance = playwright.chromium().launch(headlessOptions);
                         break;
                     case "firefox-headless":
-                        WebDriverManager.firefoxdriver().setup();
-                        driverPool.set(new FirefoxDriver(new FirefoxOptions().setHeadless(true)));
+                        browserInstance = playwright.firefox().launch(headlessOptions);
                         break;
                     default:
-                        throw new RuntimeException("No such a browser yet!");
+                        throw new RuntimeException("No such browser: " + browser);
                 }
+
+                browserPool.set(browserInstance);
+                Page page = browserInstance.newPage();
+                pagePool.set(page);
             }
         }
-        return driverPool.get();
+        return pagePool.get();
     }
 
-    public static void closeDriver(){
-        if (driverPool.get() != null){
-            driverPool.get().quit();
-            driverPool.remove();
+    public static void closeDriver() {
+        if (pagePool.get() != null) {
+            pagePool.get().close();
+            pagePool.remove();
+        }
+        if (browserPool.get() != null) {
+            browserPool.get().close();
+            browserPool.remove();
+        }
+        if (playwrightPool.get() != null) {
+            playwrightPool.get().close();
+            playwrightPool.remove();
         }
     }
 }
